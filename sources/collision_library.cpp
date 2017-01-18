@@ -64,32 +64,52 @@ namespace collision
 //    {
 //    }
 
-CollisionState detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& sphere0,
-                                const DynamicPhysObject<GMlib::PSphere<float>>& sphere1,
-                                seconds_type                                    dt)
+CollisionState
+detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& S0,
+                 const DynamicPhysObject<GMlib::PSphere<float>>& S1,
+                 seconds_type dt)
 {
+    const auto dt_max = dt;
+    const auto dt_min = std::max(S0.curr_t_in_dt, S1.curr_t_in_dt);
+    const auto new_dt = dt_max - dt_min;
 
+    const auto S0_position = S0.getMatrixToScene() * S0.getPos();
+    const auto S1_position = S1.getMatrixToScene() * S1.getPos();
 
+    const auto S0_radius = S0.getRadius();
+    const auto S1_radius = S1.getRadius();
+    const auto radius_sum = S0_radius + S1_radius;
 
+    const auto Q = (S1_position - S0_position);
+    const auto R = (S1.computeTrajectory(new_dt) - S0.computeTrajectory(new_dt));
 
-    const auto S0_pose = sphere0.getPos();
-    const auto S1_pose = sphere1.getPos();
-    const auto S0_rad = sphere0.getRadius();
-    const auto S1_rad = sphere1.getRadius();
-    const auto rad_sum = S0_rad + S1_rad;
-    const auto Q = S1_pose - S0_pose;
-    const auto R = sphere1.computeTrajectory(dt) - sphere0.computeTrajectory(dt);
-    const auto r_square = std::pow(rad_sum,2);
-    const auto x = (-(Q*R) - sqrt(std::pow(Q*R,2) - (R*R)*((Q*Q)-r_square)))/(R*R);
-    auto d = Q + x*R;
-    std::cout << x << std::endl;
+    const auto _QR = Q * R;
+    const auto _QRQR = std::pow( _QR, 2);
 
-    //    auto tmin=std:max();
+    const auto _RR = R * R;
+    const auto _QQ = Q * Q;
 
+    const auto _rr = std::pow( radius_sum, 2);
+    const auto _square = std::sqrt(_QRQR - (_RR * (_QQ - _rr)));
 
+    const auto epsilon = 0.00001;
 
-    return CollisionState(x*dt);
+    if ( _square < 0 )
+    {
+        return CollisionState(seconds_type(0.0), CollisionStateFlag::SingularityNoCollision);
+    }
+    else if ( (_QQ - _rr) < epsilon )
+    {
+        return CollisionState(seconds_type(0.0), CollisionStateFlag::SingularityParallelAndTouching);
+    }
+    else if ( _RR < epsilon )
+    {
+        return CollisionState( seconds_type(0.0), CollisionStateFlag::SingularityParallel);
+    }
 
+    const auto x = (-_QR - _square) / _RR;
+
+    return CollisionState(((x * new_dt) + dt_min), CollisionStateFlag::Collision);
 }
 
 CollisionState detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& sphere,
@@ -166,6 +186,7 @@ void DynamicPhysObject<GMlib::PSphere<float> >::simulateToTInDt(seconds_type t)
 
 GMlib::Vector<float, 3> DynamicPhysObject<GMlib::PSphere<float> >::computeTrajectory(seconds_type dt) const
 {
+    return this->velocity*dt.count();
 
 }
 
@@ -177,7 +198,7 @@ GMlib::Vector<float, 3> DynamicPhysObject<GMlib::PSphere<float> >::externalForce
 
 std::unique_ptr<Controller> unittestCollisionControllerFactory(){
 
-         return std::make_unique<MyController>();
+    return std::make_unique<MyController>();
 }
 
 
