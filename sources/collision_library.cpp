@@ -5,69 +5,12 @@
 namespace collision
 {
 
+//******************* Dectection collsion states *****************************************
 
-//    CollisionState
-//    detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& S0,
-//                     const DynamicPhysObject<GMlib::PSphere<float>>& S1,
-//                     seconds_type                                    dt)
-//    {
-//    }
-
-//    CollisionState
-//    detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& S0,
-//                     const StaticPhysObject<GMlib::PSphere<float>>&  S1,
-//                     seconds_type                                    dt)
-//    {
-//    }
-
-//    CollisionState
-//    detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& S,
-//                     const StaticPhysObject<GMlib::PPlane<float>>&   P,
-//                     seconds_type                                    dt)
-//    {
-//    }
-
-//    CollisionState
-//    detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>&  S,
-//                     const StaticPhysObject<GMlib::PCylinder<float>>& C,
-//                     seconds_type                                    dt)
-//    {
-//    }
-
-
-
-//    void
-//    computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>& S0,
-//                           DynamicPhysObject<GMlib::PSphere<float>>& S1,
-//                           seconds_type                              dt)
-//    {
-//    }
-
-//    void
-//    computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>& S0,
-//                           StaticPhysObject<GMlib::PSphere<float>>&  S1,
-//                           seconds_type                              dt)
-//    {
-//    }
-
-//    void
-//    computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>& S,
-//                           StaticPhysObject<GMlib::PPlane<float>>&   P,
-//                           seconds_type                              dt)
-//    {
-//    }
-
-//    void
-//    computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>&  S,
-//                           StaticPhysObject<GMlib::PCylinder<float>>& C,
-//                           seconds_type                              dt)
-//    {
-//    }
-
-CollisionState
-detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& S0,
-                 const DynamicPhysObject<GMlib::PSphere<float>>& S1,
-                 seconds_type dt)
+// dynamic sphere - dynamic sphere
+CollisionState detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& S0,
+                                const DynamicPhysObject<GMlib::PSphere<float>>& S1,
+                                seconds_type        dt)
 {
     const auto dt_max = dt;
     const auto dt_min = std::max(S0.curr_t_in_dt, S1.curr_t_in_dt);
@@ -112,31 +55,81 @@ detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& S0,
     return CollisionState(((x * new_dt) + dt_min), CollisionStateFlag::Collision);
 }
 
-CollisionState detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& sphere,
-                                const StaticPhysObject<GMlib::PPlane<float>>&   plane,
-                                seconds_type                                    dt)
+// dynamic sphere - static plane
+CollisionState detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& S,
+                                const StaticPhysObject<GMlib::PPlane<float>>&   P,
+                                seconds_type                            dt)
 {
+    //auto unconst_S = const_cast<DynamicPhysObject<GMlib::PSphere<float>>&>(S);
 
-    auto &unconst_P = const_cast<StaticPhysObject<GMlib::PPlane<float>>&>(plane);
-    const auto s_pos =sphere.getPos();
-    const auto _Radius = sphere.getRadius();
-    auto plane_pos = unconst_P.evaluateParent(0.5f, 0.5f, 1, 1);
-    const auto v = plane_pos(0)(1);
-    const auto u = plane_pos(1)(0);
-    const auto n = u^v;
-    const auto nNormal = GMlib::Vector<float,3>(n).getNormalized();
-    const auto d = (plane_pos(0)(0) + _Radius*nNormal) - s_pos;
-    const auto x = (d*nNormal)/(sphere.computeTrajectory(dt)*nNormal);
+    const auto dt_max = dt;
+    const auto dt_min = S.curr_t_in_dt;
+    const auto new_dt = dt_max - dt_min;
 
-    return CollisionState(x*dt);
+    auto &unconst_P = const_cast<StaticPhysObject<GMlib::PPlane<float>>&>(P);
+    auto s_pos =S.getMatrixToScene()*S.getPos();
+    auto _Radius = S.getRadius();
+    auto plane_pos = unconst_P.evaluateParent(0.5f, 0.5f,1, 1);
+
+    auto v = plane_pos(0)(1);
+    auto u = plane_pos(1)(0);
+    auto n = u^v;
+
+    auto nNormal = GMlib::Vector<float,3>(n).getNormalized();
+    auto d = (plane_pos(0)(0) + _Radius*nNormal) - s_pos;
+
+    const auto ds = (S.computeTrajectory(new_dt)*nNormal);
+
+    auto x = (d*nNormal)/(S.computeTrajectory(new_dt)*nNormal);
+
+    const auto epsilon = 0.00001;
+
+    if ( std::abs(d*n) < epsilon )
+    {
+        return CollisionState(seconds_type(0.0), CollisionStateFlag::SingularityParallelAndTouching);
+    }
+    else if (std::abs(ds)< epsilon )
+    {
+        return CollisionState( seconds_type(0.0), CollisionStateFlag::SingularityParallel);
+    }
+
+    return CollisionState(((x*new_dt)+ dt_min),CollisionStateFlag::Collision);
 
 }
 
+// dynamic sphere - static sphere
+CollisionState detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& S0,
+                                const StaticPhysObject<GMlib::PSphere<float>>&  S1,
+                                seconds_type                                    dt)
+{
+}
 
-void
-computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>& sphere0,
-                       DynamicPhysObject<GMlib::PSphere<float>>& sphere1,
-                       seconds_type                              dt)
+// dynamic sphere - static cylinder
+CollisionState detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>&  S,
+                                const StaticPhysObject<GMlib::PCylinder<float>>& C,
+                                seconds_type                                    dt)
+{
+}
+
+// dynamic sphere - static Bezier
+CollisionState detectCollision (const DynamicPSphere&  S,
+                                const StaticPBezierSurf& B,
+                                seconds_type dt)
+{
+
+    return CollisionState(seconds_type(0.0), CollisionStateFlag::SingularityNoCollision);
+
+}
+
+//***************************************************************************************
+
+
+//******************* Compututation response ********************************************
+
+// dynamic sphere - dynamic sphere
+void computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>& sphere0,
+                            DynamicPhysObject<GMlib::PSphere<float>>& sphere1,
+                            seconds_type                              dt)
 {
     auto s0_pos = sphere0.getPos();
     auto s1_pos = sphere1.getPos();
@@ -159,10 +152,10 @@ computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>& sphere0,
 
 }
 
-void
-computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>& sphere,
-                       const StaticPhysObject<GMlib::PPlane<float>>&   plane,
-                       seconds_type                              dt)
+// dynamic sphere - static plane
+void computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>& sphere,
+                            const StaticPhysObject<GMlib::PPlane<float>>&   plane,
+                            seconds_type                              dt)
 {
 
     auto &unconst_P = const_cast<StaticPhysObject<GMlib::PPlane<float>>&>(plane);
@@ -179,6 +172,23 @@ computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>& sphere,
 
 }
 
+// dynamic sphere - static sphere
+void computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>& S0,
+                            StaticPhysObject<GMlib::PSphere<float>>&  S1,
+                            seconds_type                              dt)
+{
+}
+
+// dynamic sphere - static cylinder
+void computeImpactResponse (DynamicPhysObject<GMlib::PSphere<float>>&  S,
+                            StaticPhysObject<GMlib::PCylinder<float>>& C,
+                            seconds_type                              dt)
+{
+}
+
+//***************************************************************************************
+
+
 void DynamicPhysObject<GMlib::PSphere<float> >::simulateToTInDt(seconds_type t)
 {
 
@@ -187,7 +197,6 @@ void DynamicPhysObject<GMlib::PSphere<float> >::simulateToTInDt(seconds_type t)
 GMlib::Vector<float, 3> DynamicPhysObject<GMlib::PSphere<float> >::computeTrajectory(seconds_type dt) const
 {
     return this->velocity*dt.count();
-
 }
 
 GMlib::Vector<float, 3> DynamicPhysObject<GMlib::PSphere<float> >::externalForces() const
@@ -196,10 +205,12 @@ GMlib::Vector<float, 3> DynamicPhysObject<GMlib::PSphere<float> >::externalForce
     environment->externalForces();
 }
 
-std::unique_ptr<Controller> unittestCollisionControllerFactory(){
+std::unique_ptr<Controller> unittestCollisionControllerFactory()
+{
 
     return std::make_unique<MyController>();
 }
+
 
 
 } // END namespace collision
