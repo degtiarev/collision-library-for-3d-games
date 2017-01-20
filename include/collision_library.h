@@ -15,8 +15,8 @@ class DynamicPhysObject<GMlib::PSphere<float>> : public DynamicPhysObject_Base<G
 public:
     using DynamicPhysObject_Base<GMlib::PSphere<float>>::DynamicPhysObject_Base;
     void    simulateToTInDt( seconds_type t ) override;
-     GMlib::Vector<float, 3> computeTrajectory (seconds_type dt) const override;
-      GMlib::Vector<float, 3> externalForces () const  override;
+     GMlib::Vector<double, 3> computeTrajectory (seconds_type dt) const override;
+      GMlib::Vector<double, 3> externalForces () const  override;
 };
 
 
