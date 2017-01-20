@@ -113,62 +113,63 @@ CollisionState detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& 
 
 // dynamic sphere - static Bezier
 CollisionState
-detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& S,
+detectCollision (const DynamicPSphere&  S,
                  const StaticPBezierSurf& B, seconds_type dt)
 {
     const auto dt_max = dt;
     const auto dt_min = S.curr_t_in_dt;
     const auto new_dt = dt_max - dt_min;
 
-    auto _Radius = S.getRadius();//r
-    auto &unconst_B = const_cast<StaticPBezierSurf&>(B);
-    auto s_pos = S.getPos();//p
+    const auto _Radius = S.getRadius();//r
+    const auto s_pos = S.getPos();//p
 
     float u,v,t;
     t = 0.0;
     u = 0.5;
     v = 0.5;
-    const auto epsilon = 0.00001;
+    const auto epsilon = 1e-5;
 
-    for(int i=0;i<5;++i){
+    for(int i=0; i<5; i++){
 
-    const auto ds = S.computeTrajectory(new_dt);
+        auto ds = S.computeTrajectory(new_dt);
+        auto &unconst_B = const_cast<StaticPBezierSurf&>(B);
+        const auto surf_pos = unconst_B.evaluate(u, v,1, 1);
 
-    auto surf_pos = unconst_B.evaluate(u, v,1, 1);
-    auto q = surf_pos(0)(0);//q
-    auto Sv = surf_pos(0)(1);
-    auto Su = surf_pos(1)(0);
+        const auto s_pos_new = s_pos + ds*t;
+        const auto q = surf_pos(0)(0);
+        const auto Sv = surf_pos(0)(1);
+        const auto Su = surf_pos(1)(0);
 
-    auto n = Su^Sv;
-    auto ds_new = ds*t;
+        //const auto ds_new = ds*t;
 
-    auto Sn = GMlib::Vector<float,3>(n).getNormalized();
+        const auto Sn = GMlib::Vector<float,3>(Su ^ Sv).getNormalized();
 
+        GMlib::SqMatrix<float,3>A;
+        A.setCol(Su,0);
+        A.setCol(Sv,1);
+        A.setCol(-ds,2);
+        auto A_inv = A;
 
-    GMlib::SqMatrix<float,3>A;
-    A.setCol(Su,0);
-    A.setCol(Sv,1);
-    A.setCol(-ds_new,2);
-    A.invert();
+        A_inv.invert();
 
-    auto b = GMlib::Vector<float,3>(s_pos-q-Sn*_Radius);
-    auto x = A*b;
+        const auto b = GMlib::Vector<float,3>{s_pos_new-q-Sn*_Radius};
+        const auto x = A_inv*b;
 
-    auto deltaU = x(0);
-    auto deltaV = x(1);
-    auto deltaT = x(2);
+        const auto deltaU = x(0);
+        const auto deltaV = x(1);
+        const auto deltaT = x(2);
 
-    u+=deltaU;
-    v+=deltaV;
-    t+=deltaT;
+        u+=deltaU;
+        v+=deltaV;
+        t+=deltaT;
 
-    if(std::abs(x(0)) < epsilon && std::abs(x(1)) < epsilon && std::abs(x(2)) < epsilon){
-        return CollisionState((t*new_dt)+ dt_min,CollisionStateFlag::Collision);
+        if( (std::abs(deltaU) < epsilon) and (std::abs(deltaV) < epsilon) and (std::abs(deltaT) < epsilon) ) {
+
+            return CollisionState(seconds_type(deltaT), CollisionStateFlag::Collision);
+        }
     }
 
-   }// ?
-    return CollisionState(dt_min,CollisionStateFlag::SingularityNoCollision);
-    //return CollisionState(((x*new_dt)+ dt_min),CollisionStateFlag::Collision);
+    return CollisionState(seconds_type(dt_min), CollisionStateFlag::SingularityNoCollision);
 }
 
 // dynamic sphere - static torus
