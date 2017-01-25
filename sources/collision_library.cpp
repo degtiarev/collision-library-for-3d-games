@@ -129,7 +129,7 @@ detectCollision (const DynamicPSphere&  S,
     v = 0.5;
     const auto epsilon = 1e-5;
 
-    for(int i=0; i<5; i++){
+    for(int i=0; i<6; i++){
 
         auto ds = S.computeTrajectory(new_dt);
         auto &unconst_B = const_cast<StaticPBezierSurf&>(B);
@@ -257,6 +257,20 @@ void computeImpactResponse (DynamicPSphere& S, const StaticPTorus& T,
 
 void DynamicPhysObject<GMlib::PSphere<float> >::simulateToTInDt(seconds_type t)
 {
+    //start
+    auto const M = this->getMatrixToSceneInverse();
+    auto dt = this->curr_t_in_dt;
+    const auto new_dt = t-dt;
+
+    auto ds = this->computeTrajectory(new_dt);
+    // auto xds = ds*new_dt.count();
+
+    //move
+    this->translateParent(M*ds);
+    //physics
+    auto F = this->externalForces();
+    auto a = 0.5*F*std::pow(dt.count(),2)*this->mass;
+    this->velocity+=a;
 
 }
 
@@ -271,11 +285,41 @@ GMlib::Vector<double, 3> DynamicPhysObject<GMlib::PSphere<float> >::externalForc
     environment->externalForces();
 }
 
+void MyController::localSimulate(double dt)
+{
+
+    //add collsion
+    for (auto sphere:_dynamic_spheres)
+    {
+        sphere->simulateToTInDt(seconds_type (dt));
+
+    }
+
+}
+
 std::unique_ptr<Controller> unittestCollisionControllerFactory()
 {
 
     return std::make_unique<MyController>();
 }
+
+void MyController::add(DynamicPSphere * const sphere)
+{
+    sphere->environment = & _enviroment;
+    _dynamic_spheres.push_back(sphere);
+}
+
+
+void MyController::add(StaticPPlane * const plane) { _static_planes.push_back(plane); }
+
+void MyController::add (StaticPSphere* const sphere)
+{
+    _static_spheres.push_back(sphere);
+}
+
+void MyController::add(StaticPCylinder * const cylinder) { _static_cylinders.push_back(cylinder); }
+
+void MyController::add(StaticPBezierSurf * const surf) { _static_bezier_surf.push_back(surf); }
 
 
 

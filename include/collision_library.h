@@ -23,11 +23,13 @@ public:
 class MyController : public Controller {
     GM_SCENEOBJECT(MyController)
     public:
-        void add (DynamicPSphere* const sphere) { _dynamic_spheres.push_back(sphere); }
-    void add (StaticPSphere* const sphere) { _static_spheres.push_back(sphere); }
-    void add (StaticPPlane* const plane) { _static_planes.push_back(plane); }
-    void add (StaticPCylinder* const cylinder) { _static_cylinders.push_back(cylinder); }
-    void add (StaticPBezierSurf* const surf) { _static_bezier_surf.push_back(surf); }
+
+        void add (DynamicPSphere* const sphere);
+
+    void add (StaticPSphere* const sphere);
+    void add (StaticPPlane* const plane);
+    void add (StaticPCylinder* const cylinder);
+    void add (StaticPBezierSurf* const surf);
 
 
 protected:
@@ -37,6 +39,9 @@ protected:
     std::vector<StaticPCylinder*>   _static_cylinders;
     std::vector<StaticPBezierSurf*> _static_bezier_surf;
 
+    collision::DefaultEnvironment _enviroment;
+
+    void localSimulate(double dt) override final;
     std::vector<collision::CollisionObject> _collisions;
 };
 
