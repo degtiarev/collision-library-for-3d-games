@@ -112,9 +112,8 @@ CollisionState detectCollision (const DynamicPhysObject<GMlib::PSphere<float>>& 
 }
 
 // dynamic sphere - static Bezier
-CollisionState
-detectCollision (const DynamicPSphere&  S,
-                 const StaticPBezierSurf& B, seconds_type dt)
+CollisionState detectCollision (const DynamicPSphere&  S,
+                                const StaticPBezierSurf& B, seconds_type dt)
 {
     const auto dt_max = dt;
     const auto dt_min = S.curr_t_in_dt;
@@ -254,7 +253,6 @@ void computeImpactResponse (DynamicPSphere& S, const StaticPTorus& T,
 //***************************************************************************************
 
 
-
 void DynamicPhysObject<GMlib::PSphere<float> >::simulateToTInDt(seconds_type t)
 {
     //start
@@ -287,7 +285,13 @@ GMlib::Vector<double, 3> DynamicPhysObject<GMlib::PSphere<float> >::externalForc
 
 void MyController::localSimulate(double dt)
 {
+    for (auto sphere:_dynamic_spheres)
+    {
+        sphere->curr_t_in_dt=seconds_type(0);
+    }
 
+
+    collisionAlgorithm (seconds_type (dt));
     //add collsion
     for (auto sphere:_dynamic_spheres)
     {
@@ -295,6 +299,44 @@ void MyController::localSimulate(double dt)
 
     }
 
+}
+
+void MyController::collisionAlgorithm(seconds_type dt)
+{
+    std::vector<CollisionObject> C;
+    for (auto &sphere:_dynamic_spheres){
+
+        for (auto &plane:_static_planes){
+
+            auto dt_min = sphere->curr_t_in_dt;
+
+            const auto state = detectCollision(*sphere,*plane,dt);
+
+            if (state.flag == CollisionStateFlag::Collision and (state.time>dt_min && state.time<=dt))
+                C.push_back(CollisionObject(sphere,plane,state.time));
+        }
+    }
+    sortAndMakeUnique(C);
+    std::reverse(C.begin(),C.end());
+    while (!(C.empty())){
+        auto c_elem = C.back();
+        C.pop_back();
+        c_elem.obj1->simulateToTInDt(dt);
+
+        auto obj1_dsphere = dynamic_cast<DynamicPSphere*>(c_elem.obj1);
+        //            auto obj1_dcylinder = dynamic_cast<DynamicPSphere*>(c_elem.obj1);
+
+        // auto obj2_dsphere = dynamic_cast<DynamicPSphere*>(c_elem.obj2);
+        auto obj2_splane = dynamic_cast<const StaticPPlane*>(c_elem.obj2);
+
+        if(obj1_dsphere and obj2_splane)
+            computeImpactResponse(*obj1_dsphere,*obj2_splane,c_elem.t_in_dt);
+        //            else if(obj1_dsphere and obj2_dsphere)
+        //                computeImpactResponse(obj1_dsphere,obj2_dsphere,dt);
+
+
+
+    }
 }
 
 std::unique_ptr<Controller> unittestCollisionControllerFactory()
@@ -309,13 +351,9 @@ void MyController::add(DynamicPSphere * const sphere)
     _dynamic_spheres.push_back(sphere);
 }
 
-
 void MyController::add(StaticPPlane * const plane) { _static_planes.push_back(plane); }
 
-void MyController::add (StaticPSphere* const sphere)
-{
-    _static_spheres.push_back(sphere);
-}
+void MyController::add (StaticPSphere* const sphere) { _static_spheres.push_back(sphere); }
 
 void MyController::add(StaticPCylinder * const cylinder) { _static_cylinders.push_back(cylinder); }
 

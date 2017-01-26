@@ -25,11 +25,11 @@ class MyController : public Controller {
     public:
 
         void add (DynamicPSphere* const sphere);
-
     void add (StaticPSphere* const sphere);
     void add (StaticPPlane* const plane);
     void add (StaticPCylinder* const cylinder);
     void add (StaticPBezierSurf* const surf);
+    void collisionAlgorithm (seconds_type dt);
 
 
 protected:
@@ -43,6 +43,8 @@ protected:
 
     void localSimulate(double dt) override final;
     std::vector<collision::CollisionObject> _collisions;
+
+
 };
 
 template <class Container_T > void sortAndMakeUnique( Container_T& container) {
