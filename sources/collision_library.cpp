@@ -304,39 +304,101 @@ void MyController::localSimulate(double dt)
 void MyController::collisionAlgorithm(seconds_type dt)
 {
     std::vector<CollisionObject> C;
+ /**
+    std::vector<CollisionObject> S;
+    for(auto itr1 = _dynamic_spheres.begin();itr1 != _dynamic_spheres.end()-1;++itr1){
+        for(auto itr2 = itr1;itr2 != _dynamic_spheres.end();++itr2){
+
+
+            auto& sphere1 = *itr1;
+            auto& sphere2 = *itr2;
+            auto dt_min_Diff = std::max(sphere1->curr_t_in_dt,sphere2->curr_t_in_dt);
+            const auto state_Spheres = detectCollision(**itr1,**itr2,dt_min_Diff);
+
+            if (state_Spheres.flag == CollisionStateFlag::Collision and (state_Spheres.time>dt_min_Diff && state_Spheres.time<=dt))
+                S.push_back(CollisionObject(sphere1,sphere2,state_Spheres.time));
+
+        }
+    }
+    sortAndMakeUnique(S);
+    std::reverse(S.begin(),S.end());
+    while (!(S.empty())){
+
+        // Take element
+        auto s_elem = S.back();
+        S.pop_back();
+        // Simulate to T
+        s_elem.obj1->simulateToTInDt(s_elem.t_in_dt);
+        s_elem.obj2->simulateToTInDt(s_elem.t_in_dt);
+
+       auto obj1_dsphere = dynamic_cast<DynamicPSphere*>(s_elem.obj1);
+       auto obj2_dsphere = dynamic_cast<DynamicPSphere*>(s_elem.obj1);
+
+       if(obj1_dsphere and obj2_dsphere)
+           computeImpactResponse(*obj1_dsphere,*obj2_dsphere,s_elem.t_in_dt);
+
+    }
+**/
+    for(auto itr1 = _dynamic_spheres.begin();itr1 != _dynamic_spheres.end()-1;++itr1){
+        for(auto itr2 = itr1;itr2 != _dynamic_spheres.end();++itr2){
+
+            auto& sphere1 = *itr1;
+            auto& sphere2 = *itr2;
+            auto dt_min_Diff = std::max(sphere1->curr_t_in_dt,sphere2->curr_t_in_dt);
+
+            const auto S_state = detectCollision(*sphere1,*sphere2,seconds_type(dt));
+            if (S_state.flag == CollisionStateFlag::Collision and (S_state.time>seconds_type(dt_min_Diff) && S_state.time<=dt))
+                C.push_back(CollisionObject(sphere1,sphere2,S_state.time));
+
+        }
+    }
+
     for (auto &sphere:_dynamic_spheres){
 
         for (auto &plane:_static_planes){
 
-            auto dt_min = sphere->curr_t_in_dt;
-
+            //auto dt_min = sphere->curr_t_in_dt;
+            //auto dt_min_Diff = std::max();
             const auto state = detectCollision(*sphere,*plane,dt);
+            //const auto state1 = detectCollision(*sphere,*sphere,dt);
 
-            if (state.flag == CollisionStateFlag::Collision and (state.time>dt_min && state.time<=dt))
+            if (state.flag == CollisionStateFlag::Collision and (state.time>seconds_type(0) && state.time<=dt))
                 C.push_back(CollisionObject(sphere,plane,state.time));
+
+//            else if (state1.flag == CollisionStateFlag::Collision and (state1.time>seconds_type(0) && state1.time<=dt))
+//                C.push_back(CollisionObject(sphere,sphere,state1.time));
         }
     }
-    sortAndMakeUnique(C);
-    std::reverse(C.begin(),C.end());
-    while (!(C.empty())){
-        auto c_elem = C.back();
-        C.pop_back();
-        c_elem.obj1->simulateToTInDt(dt);
+        sortAndMakeUnique(C);
+        std::reverse(C.begin(),C.end());
+        while (!(C.empty())){
 
-        auto obj1_dsphere = dynamic_cast<DynamicPSphere*>(c_elem.obj1);
-        //            auto obj1_dcylinder = dynamic_cast<DynamicPSphere*>(c_elem.obj1);
+            // Take element
+            auto c_elem = C.back();
+            C.pop_back();
 
-        // auto obj2_dsphere = dynamic_cast<DynamicPSphere*>(c_elem.obj2);
-        auto obj2_splane = dynamic_cast<const StaticPPlane*>(c_elem.obj2);
+            // Simulate to T
+            c_elem.obj1->simulateToTInDt(dt);
+            c_elem.obj2->simulateToTInDt(dt);
 
-        if(obj1_dsphere and obj2_splane)
-            computeImpactResponse(*obj1_dsphere,*obj2_splane,c_elem.t_in_dt);
-        //            else if(obj1_dsphere and obj2_dsphere)
-        //                computeImpactResponse(obj1_dsphere,obj2_dsphere,dt);
+            // Figure out if objects are static/dynamic
+            auto obj1_dsphere = dynamic_cast<DynamicPSphere*>(c_elem.obj1);
+//          auto obj1_dcylinder = dynamic_cast<DynamicPSphere*>(c_elem.obj1);
+            auto obj2_dsphere = dynamic_cast<DynamicPSphere*>(c_elem.obj2);
+            auto obj2_splane = dynamic_cast<const StaticPPlane*>(c_elem.obj2);
+
+            // Compute impact response
 
 
+             if(obj1_dsphere and obj2_dsphere)
+                computeImpactResponse(*obj1_dsphere,*obj2_dsphere,c_elem.t_in_dt);
+            // Detect additional collisions
 
-    }
+            else//(obj1_dsphere and obj2_splane)
+                computeImpactResponse(*obj1_dsphere,*obj2_splane,c_elem.t_in_dt);
+
+        }
+
 }
 
 std::unique_ptr<Controller> unittestCollisionControllerFactory()
