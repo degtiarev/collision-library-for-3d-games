@@ -36,9 +36,6 @@ class MyController : public Controller {
     void
     setAttachedObjects( std::unordered_set<StaticPPlane*> plane, DynamicPSphere* sphere );
 
-    void
-    detachObjects(DynamicPSphere* sphere);
-
     // States
     void
     detectStateChanges(double dt);
@@ -55,9 +52,9 @@ class MyController : public Controller {
     void
     handleCollision ( collision::CollisionObject& col, double dt);
 
+
     Environment                                 _stillEnvironment;
     DefaultEnvironment                          _env;
-
 
 
 private:
@@ -103,7 +100,6 @@ public:
     States          _state = States::Free;     // Which state is the sphere in
 
 
-
     GMlib::Vector<double,3>
     adjustedTrajectory (seconds_type dt);
 
@@ -115,7 +111,6 @@ public:
 
     GMlib::Vector<double, 3>
     externalForces () const override; // [m / s^2]
-
 
 };
 
@@ -136,7 +131,6 @@ public:
     int getId() const;
     void setId(int value);
 
-
 };
 
 // StateChangeObject struct
@@ -155,7 +149,6 @@ template <class PSurf_T, typename... Arguments>
 std::unique_ptr<DynamicPhysObject<PSurf_T>> unittestDynamicPhysObjectFactory(Arguments... parameters) {
 
     return std::make_unique<DynamicPhysObject<PSurf_T>> (parameters...);
-
 }
 
 template <class PSurf_T, typename... Arguments>
@@ -385,8 +378,7 @@ void sortAndMakeUnique( Container_T& container) {
 
 
 template <typename T_s>
-inline
-void MyController::dynamicCollision(T_s* dyn_obj, seconds_type dt) {
+inline void MyController::dynamicCollision(T_s* dyn_obj, seconds_type dt) {
 
     bool movingObject = false;
 
