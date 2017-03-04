@@ -33,9 +33,6 @@ class MyController : public Controller {
     std::unordered_set<StaticPPlane *>
     getAttachedObjects(DynamicPSphere* sphere);
 
-    void
-    setAttachedObjects( std::unordered_set<StaticPPlane*> plane, DynamicPSphere* sphere );
-
     // States
     void
     detectStateChanges(double dt);
@@ -47,7 +44,7 @@ class MyController : public Controller {
     handleStates (StateChangeObj& state, double dt);
 
     GMlib::Vector<float,3>
-    closestPoint(DynamicPSphere* S, seconds_type dt);
+    getClosestPoint(DynamicPSphere* S, seconds_type dt);
 
     void
     handleCollision ( collision::CollisionObject& col, double dt);
