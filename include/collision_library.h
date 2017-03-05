@@ -30,25 +30,14 @@ class MyController : public Controller {
     void add (StaticPCylinder* const cylinder);
     void add (StaticPBezierSurf* const surf);
 
-    std::unordered_set<StaticPPlane *>
-    getAttachedObjects(DynamicPSphere* sphere);
+    std::unordered_set<StaticPPlane *> getAttachedObjects(DynamicPSphere* sphere);
 
     // States
-    void
-    detectStateChanges(double dt);
-
-    StateChangeObj
-    detectStateChange(DynamicPSphere* sphere, double dt);
-
-    void
-    handleStates (StateChangeObj& state, double dt);
-
-    GMlib::Vector<float,3>
-    getClosestPoint(DynamicPSphere* S, seconds_type dt);
-
-    void
-    handleCollision ( collision::CollisionObject& col, double dt);
-
+    void detectStateChanges(double dt);
+    StateChangeObj detectStateChange(DynamicPSphere* sphere, double dt);
+    void handleStates (StateChangeObj& state, double dt);
+    GMlib::Vector<float,3> getClosestPoint(DynamicPSphere* S, seconds_type dt);
+    void handleCollision ( collision::CollisionObject& col, double dt);
 
     Environment                                 _stillEnvironment;
     DefaultEnvironment                          _env;
@@ -236,7 +225,7 @@ void MyController::crossUnique(Container_1 ColContainer, Container_2 stateContai
             if (placed == false) _newCollisions.push_back(*firstIter);
 
         }
-
+ // Does the same thing for the Smaller container as the if(placed == false) check above does for the Larger container
         for( auto& state : stateContainer) {
 
             if(amIinState(_newStateOjects, state) == false ) _newStateOjects.push_back(state);
@@ -341,8 +330,6 @@ void sortAndMakeUnique( Container_T& container) {
 
         auto is_d_pred = []( const auto* obj ) {
             if(dynamic_cast<const DynamicPSphere*>(obj)) return true;
-
-
 
             return false;
         };

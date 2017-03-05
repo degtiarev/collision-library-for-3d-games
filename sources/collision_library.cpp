@@ -322,6 +322,8 @@ std::unique_ptr<Controller> unittestCollisionControllerFactory() {
     return std::make_unique<MyController> ();
 }
 
+/** Code developed with help from Bjørn-Richard Pedersen and Fatemeh Heidari **/
+// check the planes against a sphere and find a closest one
 GMlib::Vector<float,3> MyController::getClosestPoint(DynamicPSphere* sphere, seconds_type dt)
 {
     //going to return   q-p  to  adjustTrajectory method
@@ -344,8 +346,9 @@ GMlib::Vector<float,3> MyController::getClosestPoint(DynamicPSphere* sphere, sec
 
     auto  planes = _map[sphere];
 
-    //iteration
 
+    //use taylor expansion
+       //iteration
     for ( int i=0; i<10;i++/* delta_u > epsilon && delta_v > epsilon*/){
         GMlib::Vector <float,3>Sn {0.0f,0.0f,0.0f};
         GMlib::Vector <float,3>Su {0.0f,0.0f,0.0f};
@@ -388,6 +391,7 @@ GMlib::Vector<float,3> MyController::getClosestPoint(DynamicPSphere* sphere, sec
     return d;
 }
 
+/** Code developed with help from Bjørn-Richard Pedersen and Fatemeh Heidari **/
 void DynamicPhysObject<GMlib::PSphere<float> >::simulateToTInDt(seconds_type t){
 
 
@@ -407,16 +411,10 @@ void DynamicPhysObject<GMlib::PSphere<float> >::simulateToTInDt(seconds_type t){
         if( this->_state == DynamicPSphere::States::Rolling ) {
             ds = adjustedTrajectory(dt0);
 
-            if(ds < 20 ) {
-
-                this->velocity = {0.0f, 0.0f, 0.0f };
-                this->environment = &_sphereController->_stillEnvironment;
-            }
-
             this->translateParent(Mi*ds);
             this->curr_t_in_dt = t;
 
-            //Update physics
+            //Update physics for rolling state
             auto F = this->externalForces();
             auto c = dt0.count();
             auto a = F * c;
@@ -426,20 +424,17 @@ void DynamicPhysObject<GMlib::PSphere<float> >::simulateToTInDt(seconds_type t){
 
             ds = computeTrajectory(dt0);
 
+            // Move
             this->translateParent(Mi*ds);
             this->curr_t_in_dt =t;
 
             //update physics
-
             auto F = this->externalForces();
             auto c = dt0.count();
             auto a = F*c;
             this->velocity += a;
         }
     }
-
-    //            myFile.close();
-
 
 }
 
@@ -454,6 +449,7 @@ GMlib::Vector<double,3> DynamicPhysObject<GMlib::PSphere<float> >::computeTrajec
 
 }
 
+//**** Code developed with help from Ghada Bouzidi, Fatemeh Heidari and Bjorn *****
 GMlib::Vector<double,3> DynamicPhysObject<GMlib::PSphere<float> >::adjustedTrajectory(seconds_type dt) {
 
     // Update ds to modified DS
@@ -492,6 +488,7 @@ GMlib::Vector<double,3> DynamicPhysObject<GMlib::PSphere<float> >::externalForce
     return this->environment->externalForces().toType<double>();
 }
 
+/** Code developed with help from Bjørn-Richard Pedersen and Fatemeh Heidari **/
 void MyController::localSimulate(double dt) {
 
     // Reset time variable for all objects
@@ -526,7 +523,7 @@ void MyController::localSimulate(double dt) {
 
     while( !_collisions.empty() or !_singularities.empty() ) {
 
-        // IF BOTH NOT EMPTY
+        // If both containers not empty
         if( !_collisions.empty() and !_singularities.empty() ) {
 
             const auto col_time = _collisions.back().t_in_dt;
@@ -535,19 +532,19 @@ void MyController::localSimulate(double dt) {
             // Resolve Collision
             if( col_time < sing_time ) {
 
-                auto c = _collisions.back();
-                _collisions.pop_back();;
+                auto c = _collisions.back(); //take a first collision object
+                _collisions.pop_back();;//remove it from vector
 
                 handleCollision(c, dt);     // Also detects more collisions
 
-                detectStateChanges(dt);
+                detectStateChanges(dt); //detect States
 
                 sortAndMakeUnique(_collisions);
                 sortAndMakeUniqueStates(_singularities);
 
                 if( !_collisions.empty() and !_singularities.empty() ) {
 
-                    crossUnique(_collisions, _singularities);
+                    crossUnique(_collisions, _singularities); // crosscheck
                 }
                 else {
                     // Make sure that the newest event is at the front of the vector
@@ -596,7 +593,7 @@ void MyController::localSimulate(double dt) {
 
             handleCollision(c, dt);     // Also detects more collisions
 
-            detectStateChanges(dt);
+            detectStateChanges(dt);    //detect state changes
 
             sortAndMakeUnique(_collisions);
             sortAndMakeUniqueStates(_singularities);
@@ -613,7 +610,7 @@ void MyController::localSimulate(double dt) {
 
         }
 
-        // IF SINGULARITIES NOT EMPTY
+        //  If singularities container not empty
         else if( _collisions.empty() and !_singularities.empty() ) {
 
             auto s = _singularities.back();
@@ -653,6 +650,7 @@ void MyController::localSimulate(double dt) {
 
 }
 
+/** Code developed with help from Bjørn-Richard Pedersen **/
 // Singularity handeling
 void MyController::handleStates(StateChangeObj &state, double dt) {
 
@@ -664,7 +662,7 @@ void MyController::handleStates(StateChangeObj &state, double dt) {
     std::cout << "handleStates says the state is now " << int(newState) << " after being " << int(sphere->_state) << std::endl;
 
     if( newState == DynamicPSphere::States::Free ) {
-        // Remove objects from the set In the map
+        // Remove objects from the set In the map (if not mistaken, check)
         _map.erase(sphere);
     }
 
@@ -783,7 +781,7 @@ StateChangeObj MyController::detectStateChange(DynamicPSphere *sphere, double dt
     GMlib::APoint<float,3> q;
     GMlib::Vector<float,3> n {0.0f, 0.0f, 0.0f};
 
-    if( planes.empty() ) {  // Sphere NOT attached
+    if( planes.empty() ) {  // sphere is not attached to plane
 
         for (auto& plane : _static_planes) {
             auto M = plane->evaluateParent(0.5f,0.5f,1,1);
@@ -814,7 +812,7 @@ StateChangeObj MyController::detectStateChange(DynamicPSphere *sphere, double dt
 
         return StateChangeObj(sphere, planeContainer, returnTime, state);
     }
-    else {      // Sphere ATTACHED
+    else {     // sphere is attached to plane
 
         for (auto &it :planes){
             auto M = it->evaluateParent(0.5f,0.5f,1,1);
