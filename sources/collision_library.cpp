@@ -475,7 +475,6 @@ void MyController::localSimulate(double dt) {
         std::reverse(_collisions.begin(), _collisions.end());
     }
 
-
     while( !_collisions.empty() or !_singularities.empty() ) {
 
         // If both containers not empty
@@ -524,15 +523,14 @@ void MyController::localSimulate(double dt) {
             // Collision detection algorithm
             for( auto& sphere : _dynamic_spheres)
                 dynamicCollision(sphere, seconds_type(dt));
-
         }
-
 
 
         detectStateChanges(dt);  //detect states changes
         sortAndMakeUnique(_collisions);
         sortAndMakeUniqueStates(_singularities);
 
+        // Make both collisions and states unique in relation to each other
         if( !_collisions.empty() and !_singularities.empty() )
             crossUnique(_collisions, _singularities);
         else {
@@ -559,17 +557,14 @@ void MyController::handleStates(StateChangeObj &state, double dt) {
 
     std::cout << "handleStates says the state is now " << int(newState) << " after being " << int(sphere->_state) << std::endl;
 
-    if( newState == DynamicPSphere::States::Free ) {
-        // Remove objects from the set In the map (if not mistaken, check)
+    // Remove objects from the set In the map
+    if( newState == DynamicPSphere::States::Free )
         _map.erase(sphere);
-    }
-
-    else {
+    else
         // Set objects attached to sphere
         for( auto& p : planes) {
             _map[sphere].emplace(p);
         }
-    }
     sphere->_state = newState;
     sphere->simulateToTInDt(Statetime);
 }
@@ -585,7 +580,6 @@ void MyController::handleCollision(CollisionObject &c, double dt) {
     // Impact response
     // If the first object is a sphere
     if(d_sphere_1) {
-
 
         if (d_sphere_2) {
 
@@ -632,8 +626,6 @@ void MyController::handleCollision(CollisionObject &c, double dt) {
         if(d_sphere_2)
 
             dynamicCollision(d_sphere_2, seconds_type(dt));   // Does it collide with any dynamic objects? Can't with sphere 1
-
-
     }
 }
 
@@ -693,24 +685,19 @@ StateChangeObj MyController::detectStateChange(DynamicPSphere *sphere, double dt
             auto dn         = d*n;
 
             if( std::abs(dn) < epsilon and dsn <= epsilon ) {
-
                 planeContainer.insert(plane);
                 state = DynamicPSphere::States::Rolling;
-
             }
             else if( std::abs(dn) < epsilon and bla < epsilon  ) {
-
                 planeContainer.insert(plane);
                 state = DynamicPSphere::States::AtRest;
-
             }
             else state = DynamicPSphere::States::Free;
         }
-
         return StateChangeObj(sphere, planeContainer, returnTime, state);
     }
-    else {     // sphere is attached to plane
-
+    else
+    {     // sphere is attached to plane
         for (auto &it :planes){
             auto M = it->evaluateParent(0.5f,0.5f,1,1);
             auto pos= M(0)(0);
@@ -720,6 +707,7 @@ StateChangeObj MyController::detectStateChange(DynamicPSphere *sphere, double dt
             n+=normal;
             q=pos;
         }
+
         n= GMlib::Vector <float,3>(n/planes.size()).getNormalized();
 
         auto d       = (q + r * n) - pos;
@@ -753,12 +741,10 @@ StateChangeObj MyController::detectStateChange(DynamicPSphere *sphere, double dt
         else if( sphere->_state == DynamicPSphere::States::AtRest ) {
 
             if( bla > epsilon ) {
-
                 state = DynamicPSphere::States::Rolling;
                 return StateChangeObj(sphere, planes, returnTime, DynamicPSphere::States::Rolling);
             }
             else if( dsn > epsilon) {
-
                 state = DynamicPSphere::States::Free;
                 return StateChangeObj(sphere, planes, returnTime, DynamicPSphere::States::Rolling);
             }
@@ -775,13 +761,11 @@ std::unordered_set<StaticPPlane *> MyController::getAttachedObjects(DynamicPSphe
     static std::unordered_set<StaticPPlane*> empty {};
     auto iter = _map.find(sphere);
 
-    if( iter != _map.end() ) {
-
+    if( iter != _map.end() )
         return iter->second;
-    }
+
     else return empty;
 }
-
 
 //void collision::removeCube(int id)
 //{
@@ -797,7 +781,6 @@ std::unordered_set<StaticPPlane *> MyController::getAttachedObjects(DynamicPSphe
 //      }
 
 //}
-
 
 } // END namespace collision
 
