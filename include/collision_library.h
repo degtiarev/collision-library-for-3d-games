@@ -30,12 +30,12 @@ class MyController : public Controller {
     void add (StaticPCylinder* const cylinder);
     void add (StaticPBezierSurf* const surf);
 
-    std::unordered_set<StaticPPlane *> getAttachedObjects(DynamicPSphere* sphere);
-
     // States
     void detectStateChanges(double dt);
     StateChangeObj detectStateChange(DynamicPSphere* sphere, double dt);
     void handleStates (StateChangeObj& state, double dt);
+
+    std::unordered_set<StaticPPlane *> getAttachedObjects(DynamicPSphere* sphere);
     GMlib::Vector<float,3> getClosestPoint(DynamicPSphere* S, seconds_type dt);
     void handleCollision ( collision::CollisionObject& col, double dt);
 
@@ -45,14 +45,9 @@ class MyController : public Controller {
 
 private:
 
-    template <typename T_s>
-    void dynamicCollision(T_s* sphere, seconds_type dt);
-
-    template <class Container>
-    void sortAndMakeUniqueStates(Container& c);
-
-    template <typename Container_1, typename Container_2>
-    void crossUnique( Container_1 container1, Container_2 container2);
+    template <typename T_s> void dynamicCollision (T_s* sphere, seconds_type dt);
+    template <class Container> void sortAndMakeUniqueStates(Container& c);
+    template <typename Container_1, typename Container_2> void crossUnique( Container_1 container1, Container_2 container2);
 
 protected:
     void localSimulate (double dt) override;
@@ -83,20 +78,12 @@ public:
     };
 
     MyController*   _sphereController;
-    States          _state = States::Free;     // Which state is the sphere in
+    States          _state = States::Free;     // current state of sphere
 
-
-    GMlib::Vector<double,3>
-    adjustedTrajectory (seconds_type dt);
-
-    void
-    simulateToTInDt( seconds_type t ) override;
-
-    GMlib::Vector<double, 3>
-    computeTrajectory (seconds_type dt) const override; // [m]
-
-    GMlib::Vector<double, 3>
-    externalForces () const override; // [m / s^2]
+    GMlib::Vector<double,3> adjustedTrajectory (seconds_type dt);
+    void simulateToTInDt (seconds_type t ) override;
+    GMlib::Vector<double, 3> computeTrajectory (seconds_type dt) const override; // [m]
+    GMlib::Vector<double, 3> externalForces () const override; // [m / s^2]
 
 };
 
@@ -109,19 +96,18 @@ public:
     void moveDown();
     void moveLeft();
     void moveRight();
-    using PhysObject<GMlib::PPlane<float>, PhysObjectType::Static>::PhysObject;
 
+    using PhysObject<GMlib::PPlane<float>, PhysObjectType::Static>::PhysObject;
 
     void simulateToTInDt (seconds_type) override {}
 
     int getId() const;
     void setId(int value);
-
 };
 
 // StateChangeObject struct
 struct StateChangeObj {
-    DynamicPSphere*                             obj;               // Object whos state will change
+    DynamicPSphere*                             obj;                // Object which state will change
     std::unordered_set<StaticPPlane*>           attachedPlanes;     // Object that obj1 will change state ACCORDING to
     seconds_type                                time;               // Time of singularity
     DynamicPSphere::States                      state;              // State that obj1 will change to
@@ -157,7 +143,6 @@ void MyController::crossUnique(Container_1 ColContainer, Container_2 stateContai
             if(c.obj2==b.obj2) return true;
             return false;
         }
-
     };
 
     auto amIinState = [](Container_2 a, const auto& b){
@@ -178,16 +163,11 @@ void MyController::crossUnique(Container_1 ColContainer, Container_2 stateContai
     };
 
     bool colBigger;
-
-    if( ColContainer.size() > stateContainer.size() ) {
-
+    if( ColContainer.size() > stateContainer.size() )
         colBigger = true;
-
-    }
     else colBigger = false;
 
     if( colBigger == true ) {
-
         bool placed = false;
 
         for(auto firstIter = std::end(ColContainer) - 1; firstIter!= std::begin(ColContainer) - 1;--firstIter)
@@ -225,11 +205,9 @@ void MyController::crossUnique(Container_1 ColContainer, Container_2 stateContai
             if (placed == false) _newCollisions.push_back(*firstIter);
 
         }
- // Does the same thing for the Smaller container as the if(placed == false) check above does for the Larger container
-        for( auto& state : stateContainer) {
-
+        // Does the same thing for the Smaller container as the if(placed == false) check above does for the Larger container
+        for( auto& state : stateContainer)
             if(amIinState(_newStateOjects, state) == false ) _newStateOjects.push_back(state);
-        }
     }
 
     // States are bigger
@@ -247,7 +225,7 @@ void MyController::crossUnique(Container_1 ColContainer, Container_2 stateContai
                 //Check for same Objects
                 if(objPred(*secondIter,*firstIter))
                 {
-                    //check for time of objects in both container
+                    //check for time of objects in both containers
                     if(timePred(*secondIter,*firstIter))
                     {
                         //check if already in new container
@@ -269,7 +247,7 @@ void MyController::crossUnique(Container_1 ColContainer, Container_2 stateContai
                 }
             }
 
-            // If col object NOT in states
+            // If col object is NOT in states
             _newStateOjects.push_back(*firstIter);
         }
 
@@ -319,18 +297,15 @@ template <class Container_T >
 void sortAndMakeUnique( Container_T& container) {
 
     // Sort
-
     std::sort( std::begin(container), std::end(container), [](const auto& a, const auto& b) {
         return a.t_in_dt < b.t_in_dt;
     });
 
     // Make unique
-
     auto pred =  [](const auto &a, const auto &b) {
 
         auto is_d_pred = []( const auto* obj ) {
             if(dynamic_cast<const DynamicPSphere*>(obj)) return true;
-
             return false;
         };
 
@@ -339,7 +314,6 @@ void sortAndMakeUnique( Container_T& container) {
         if( a.obj2 == b.obj1 ) return true;
         if( ( is_d_pred(a.obj2) or is_d_pred(b.obj2) )
                 and a.obj2 == b.obj2 ) return true;
-
         return false;
     };
 
@@ -394,8 +368,6 @@ inline void MyController::dynamicCollision(T_s* dyn_obj, seconds_type dt) {
                 if( col.time > seconds_type(new_t) and col.time < dt) {
                     auto col_obj = CollisionObject(first_sphere, second_sphere, col.time);
                     _collisions.push_back(col_obj);
-
-
                 }
             }
         }
