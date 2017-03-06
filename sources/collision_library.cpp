@@ -305,7 +305,6 @@ std::unique_ptr<Controller> unittestCollisionControllerFactory() {
 GMlib::Vector<float,3> MyController::getClosestPoint(DynamicPSphere* sphere, seconds_type dt)
 {
     //going to return   q-p  to  adjustTrajectory method
-
     auto max_dt = dt;
     auto min_dt = sphere->curr_t_in_dt;
     auto new_dt = max_dt -min_dt;
@@ -323,7 +322,6 @@ GMlib::Vector<float,3> MyController::getClosestPoint(DynamicPSphere* sphere, sec
     GMlib::Vector<float,3> d{0.0f,0.0f,0.0f};
 
     auto  planes = _map[sphere];
-
 
     //use taylor expansion
     //iteration
@@ -372,7 +370,6 @@ GMlib::Vector<float,3> MyController::getClosestPoint(DynamicPSphere* sphere, sec
 /** Method developed with help of Bjørn-Richard Pedersen and Fatemeh Heidari **/
 void DynamicPhysObject<GMlib::PSphere<float> >::simulateToTInDt(seconds_type t){
 
-
     if( this->_state == DynamicPSphere::States::AtRest or this->velocity <= 0.04 ) {
 
         this->velocity = {0.0f, 0.0f, 0.0f };
@@ -386,32 +383,20 @@ void DynamicPhysObject<GMlib::PSphere<float> >::simulateToTInDt(seconds_type t){
 
         GMlib::Vector<double,3>  ds = (0.0f,0.0f,0.0f);
 
-        if( this->_state == DynamicPSphere::States::Rolling ) {
+        if( this->_state == DynamicPSphere::States::Rolling )
             ds = adjustedTrajectory(dt0);
-
-            this->translateParent(Mi*ds);
-            this->curr_t_in_dt = t;
-
-            //Update physics for rolling state
-            auto F = this->externalForces();
-            auto c = dt0.count();
-            auto a = F * c;
-            this->velocity += a;
-        }
-        else {
-
+        else
             ds = computeTrajectory(dt0);
 
-            // Move
-            this->translateParent(Mi*ds);
-            this->curr_t_in_dt =t;
+        // Move
+        this->translateParent(Mi*ds);
+        this->curr_t_in_dt =t;
 
-            //update physics
-            auto F = this->externalForces();
-            auto c = dt0.count();
-            auto a = F*c;
-            this->velocity += a;
-        }
+        //update physics
+        auto F = this->externalForces();
+        auto c = dt0.count();
+        auto a = F*c;
+        this->velocity += a;
     }
 
 }
@@ -424,13 +409,12 @@ GMlib::Vector<double,3> DynamicPhysObject<GMlib::PSphere<float> >::computeTrajec
     GMlib::Vector<double,3> ds = vel * dtCount + 0.5 * xF * std::pow(dtCount, 2);
 
     return ds;
-
 }
 
 /** Method developed with help of Bjørn-Richard Pedersen and Fatemeh Heidari **/
 GMlib::Vector<double,3> DynamicPhysObject<GMlib::PSphere<float> >::adjustedTrajectory(seconds_type dt) {
 
-    // Update ds to modified DS
+    // Update ds for modified DS
     auto ds = this->computeTrajectory(seconds_type(dt));
     auto r = this->getRadius();
     auto s = this->getMatrixToScene() * this->getPos();
@@ -441,8 +425,7 @@ GMlib::Vector<double,3> DynamicPhysObject<GMlib::PSphere<float> >::adjustedTraje
 
     GMlib::Point<float,2> q;
 
-    for( auto& plane : planes ) {
-
+    for ( auto& plane : planes ) {
         const auto M = plane->evaluateParent(0.5f, 0.5f, 1, 1);
         const auto u = M(1)(0);
         const auto v = M(0)(1);
@@ -461,7 +444,6 @@ GMlib::Vector<double,3> DynamicPhysObject<GMlib::PSphere<float> >::adjustedTraje
 }
 
 GMlib::Vector<double,3> DynamicPhysObject<GMlib::PSphere<float> >::externalForces() const {
-
     assert(environment != nullptr);
     return this->environment->externalForces().toType<double>();
 }
@@ -470,34 +452,29 @@ GMlib::Vector<double,3> DynamicPhysObject<GMlib::PSphere<float> >::externalForce
 void MyController::localSimulate(double dt) {
 
     // Reset time variable for all objects
-    for( auto sphere : _dynamic_spheres) {
-
+    for( auto sphere : _dynamic_spheres)
         sphere->curr_t_in_dt = seconds_type{0.0};
-    }
 
     // Detect state changes and fill up our state container
     detectStateChanges(dt);
     sortAndMakeUniqueStates(_singularities);
 
     // Collision detection algorithm
-    for( auto& sphere : _dynamic_spheres) {
-
+    for( auto& sphere : _dynamic_spheres)
         dynamicCollision(sphere, seconds_type(dt));
 
-    }
     // Make Collision unique
     sortAndMakeUnique(_collisions);
 
     // Make both collisions and states unique in relation to each other
-    if( !_collisions.empty() and !_singularities.empty() ) {
-
+    if( !_collisions.empty() and !_singularities.empty() )
         crossUnique(_collisions, _singularities);
-    }
     else {
         // Make sure that the newest event is at the front of the vector
         std::reverse(_singularities.begin(), _singularities.end() );
         std::reverse(_collisions.begin(), _collisions.end());
     }
+
 
     while( !_collisions.empty() or !_singularities.empty() ) {
 
@@ -508,123 +485,66 @@ void MyController::localSimulate(double dt) {
             const auto sing_time = _singularities.back().time;
 
             // Resolve Collision
-            if( col_time < sing_time ) {
-
+            if ( col_time < sing_time ) {
                 auto c = _collisions.back(); //take a first collision object
-                _collisions.pop_back();;//remove it from vector
+                _collisions.pop_back();;     //remove it from vector
 
                 handleCollision(c, dt);     // Also detects more collisions
-
-                detectStateChanges(dt); //detect States
-
-                sortAndMakeUnique(_collisions);
-                sortAndMakeUniqueStates(_singularities);
-
-                if( !_collisions.empty() and !_singularities.empty() ) {
-
-                    crossUnique(_collisions, _singularities); // crosscheck
-                }
-                else {
-                    // Make sure that the newest event is at the front of the vector
-                    std::reverse(_singularities.begin(), _singularities.end() );
-                    std::reverse(_collisions.begin(), _collisions.end());
-                }
             }
 
             // Resolve Singularity
             else {
-
                 auto s = _singularities.back();
                 _singularities.pop_back();
 
                 handleStates(s, dt);
 
                 // Collision detection algorithm
-                for( auto& sphere : _dynamic_spheres) {
-
+                for( auto& sphere : _dynamic_spheres)
                     dynamicCollision(sphere, seconds_type(dt));
-
-                }
-
-                detectStateChanges(dt);
-
-                sortAndMakeUnique(_collisions);
-                sortAndMakeUniqueStates(_singularities);
-
-                if( !_collisions.empty() and !_singularities.empty() ) {
-
-                    crossUnique(_collisions, _singularities);
-                }
-                else {
-                    // Make sure that the newest event is at the front of the vector
-                    std::reverse(_singularities.begin(), _singularities.end() );
-                    std::reverse(_collisions.begin(), _collisions.end());
-                }
             }
         }
 
         // IF COLLISIONS NOT EMPTY
         else if( !_collisions.empty() and _singularities.empty() ) {
-
             auto c = _collisions.back();
             _collisions.pop_back();;
 
             handleCollision(c, dt);     // Also detects more collisions
 
-            detectStateChanges(dt);    //detect state changes
-
-            sortAndMakeUnique(_collisions);
-            sortAndMakeUniqueStates(_singularities);
-
-            if( !_collisions.empty() and !_singularities.empty() ) {
-
-                crossUnique(_collisions, _singularities);
-            }
-            else {
-                // Make sure that the newest event is at the front of the vector
-                std::reverse(_singularities.begin(), _singularities.end() );
-                std::reverse(_collisions.begin(), _collisions.end());
-            }
-
         }
 
         //  If singularities container not empty
         else if( _collisions.empty() and !_singularities.empty() ) {
-
             auto s = _singularities.back();
             _singularities.pop_back();
 
             handleStates(s, dt);
 
             // Collision detection algorithm
-            for( auto& sphere : _dynamic_spheres) {
-
+            for( auto& sphere : _dynamic_spheres)
                 dynamicCollision(sphere, seconds_type(dt));
-            }
 
-            detectStateChanges(dt);
+        }
 
-            sortAndMakeUnique(_collisions);
-            sortAndMakeUniqueStates(_singularities);
 
-            if( !_collisions.empty() and !_singularities.empty() ) {
 
-                crossUnique(_collisions, _singularities);
-            }
-            else {
-                // Make sure that the newest event is at the front of the vector
-                std::reverse(_singularities.begin(), _singularities.end() );
-                std::reverse(_collisions.begin(), _collisions.end());
-            }
+        detectStateChanges(dt);  //detect states changes
+        sortAndMakeUnique(_collisions);
+        sortAndMakeUniqueStates(_singularities);
+
+        if( !_collisions.empty() and !_singularities.empty() )
+            crossUnique(_collisions, _singularities);
+        else {
+            // Make sure that the newest event is at the front of the vector
+            std::reverse(_singularities.begin(), _singularities.end() );
+            std::reverse(_collisions.begin(), _collisions.end());
         }
     }
 
-
-    //         Start simulation for all objects
-    for( auto sphere : _dynamic_spheres) {
-
+    //  Start simulation for all objects
+    for( auto sphere : _dynamic_spheres)
         sphere->simulateToTInDt(seconds_type(dt));
-    }
 
 }
 
